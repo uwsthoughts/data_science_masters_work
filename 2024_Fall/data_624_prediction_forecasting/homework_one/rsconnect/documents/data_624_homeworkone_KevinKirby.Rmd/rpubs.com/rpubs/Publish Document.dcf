@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/1217184/6cc23189533a4f32a3059234b26310ea
+bundleId: https://api.rpubs.com/api/v1/document/1217184/6cc23189533a4f32a3059234b26310ea
+url: http://rpubs.com/uwsthoughts/1217184/edit
+version: 1

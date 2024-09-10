@@ -1,0 +1,89 @@
+---
+title: "data_607_assignment1_Kevin_Kirby"
+output: html_document
+date: "2024-09-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This is a review of FiveThirtyEight's 2021 story and accompanying dataset titled ["According To Super Bowl Ads, Americans Love America, Animals And Sex"](https://projects.fivethirtyeight.com/super-bowl-ads/).
+
+The article talks about how they created a series of categories and determined if that ad belonged to that category, with each ad being allowed to belong to multiple categories. Each category is its own column in the data, allowing for different categories for the same ad. The purpose of their analysis was to first categories the ads and then review any particular outcomes they found interesting or weird. For example, they found 12 ads that were both patriotic and had celebrities, which speaks to advertisers trying to convey loyalty to country through spokespeople football fans would recognize.
+
+The overall purpose of their analysis was humerous in nature, they wanted to see what they would find and weren't trying to prove a specific point. 
+
+## Accessing the Data
+
+I created a bucket for my CUNY masters work and enabled settings that allow me to permission access on a file by file basis. This allowed me to make this specific file at this specific location readable by the public while protecting the overall security of my GCP instance and bucket. In this specific instance, this was the right approach but I often use permissioning through IAM to create a different setup. 
+
+```{r tidverse-setup}
+library(tidyverse)
+
+```
+
+```{r google-cloud-connection}
+gcp_location <- "https://storage.googleapis.com/cuny_files/superbowl-ads-main/superbowl-ads.csv"
+superbowl_data <- read_csv(url(gcp_location))
+```
+
+## Creating New Dataframe 
+
+To create a new dataframe that's a subset of the existing one, I will use the dplyr package, which is part of the tidyverse universe of packages and is designed to make data manipulation easier:
+
+```{r dylyr-load}
+library(dplyr)
+
+```
+
+Now I can define the new dataframe using R's piping feature, which allows me to chain R functions together. In this caase, I'm going to link the definition of the new ads_subset to a selection of specific fields from super_bowl data. For this analysis, I'm interested in any relationships between the brand, whether it's funny, and whether it's patriotic. I want to see if brands try to link use humor as a tool for conveying patriotism since that's often a topic advertisers will treat seriously.
+
+```{r create-ads-subset}
+ads_subset <- superbowl_data %>%
+  select(year, brand, funny, patriotic)
+
+```
+
+## Exploratory Data Analysis
+
+I'm going to use the charting library ggplot2 to create a stacked bar chart that shows the proportion of ads that are funny and patriotic by brand. To do this, I will first add a new field to the ads_subset that contatenates the TRUE and FALSE values from the funny and patrioic fields into one string values. In a future analysis, I would try and make this a few new fields that says if an ad is both funny and patriotic or isn't either. 
+
+
+### Load plotting library and Create New Field
+
+```{r load-ggplot2}
+library(ggplot2)
+
+```
+
+```{r create-new-field}
+ads_subset$combos_cat <- with(ads_subset, interaction(funny, patriotic, sep = "_"))
+
+```
+
+### Create Stacked Bar Chart
+
+
+```{r stacked-bar-chart}
+ggplot(ads_subset, aes(x = brand, fill = combos_cat)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Funny and Patriotic Ads by Brand",
+       x = "Brand",
+       y = "Proportion",
+       fill = "Category (Funny_Patriotic)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+The chart shows that most brands don't produce ads that are both funnt and patriotic (all that green you see). It's notable that E-Trade has tried it the most, as that's a seemingly random brand in the grand scheme of things.
+
+## Conclusions
+
+To extend the work, I would revist the approach for defining the different categories and see if there's a better approach than just the human judgement of the folks doing the analysis. For instance, the brands themselves might have category preferences that could be considered and that might create an interesting comparison between what they intended and what was actually felt. I would also bring in societial contextual data points that would help create a more holistic approach, For instance, if it was an election year then that might influence the ads. If some major event like covid lockdowns happened then it would be good to bring in a datapoint for it. Overall, I found this initial analysis by FiveThirtyEight interesting but pretty basic. 
+
+ 
+

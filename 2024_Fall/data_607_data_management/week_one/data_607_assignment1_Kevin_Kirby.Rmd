@@ -21,6 +21,7 @@ The overall purpose of their analysis was humerous in nature, they wanted to see
 I created a bucket for my CUNY masters work and enabled settings that allow me to permission access on a file by file basis. This allowed me to make this specific file at this specific location readable by the public while protecting the overall security of my GCP instance and bucket. In this specific instance, this was the right approach but I often use permissioning through IAM to create a different setup. 
 
 ```{r tidverse-setup}
+
 library(tidyverse)
 
 ```
@@ -28,6 +29,7 @@ library(tidyverse)
 ```{r google-cloud-connection}
 gcp_location <- "https://storage.googleapis.com/cuny_files/superbowl-ads-main/superbowl-ads.csv"
 superbowl_data <- read_csv(url(gcp_location))
+
 ```
 
 ## Creating New Dataframe 

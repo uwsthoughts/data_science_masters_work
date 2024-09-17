@@ -50,19 +50,6 @@ pgs_db <- dbConnect(
 )
 ```
 
-
-```{r, echo=FALSE}
-pgs_db <- dbConnect(
-  RPostgres::Postgres(),
-  host = "localhost",           
-  port = 5432,                  
-  dbname = "data_607", 
-  user = "postgres",      
-  password = "Mingyenkittyshen12@"     
-)
-```
-
-
 ## Data Import from Google Cloud Platform
 
 I downloaded the data from the file provided on Brightspace and uploaded it as a txt file to my Google Cloud Platform instance. Clicking on this link will cause the file to be downloaded to your computer.

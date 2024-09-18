@@ -50,6 +50,10 @@ pgs_db <- dbConnect(
 )
 ```
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 ## Data Import from Google Cloud Platform
 
 I downloaded the data from the file provided on Brightspace and uploaded it as a txt file to my Google Cloud Platform instance. Clicking on this link will cause the file to be downloaded to your computer.

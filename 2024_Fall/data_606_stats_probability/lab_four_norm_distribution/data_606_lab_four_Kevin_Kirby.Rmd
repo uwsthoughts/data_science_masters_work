@@ -2,15 +2,13 @@
 title: "Data 606 Lab 4: The Normal Distribution"
 author: "Kevin Kirby"
 output:
-  pdf_document: default
   html_document:
-    includes:
-      in_header: header.html
     css: ./lab.css
     highlight: pygments
     theme: cerulean
     toc: true
     toc_float: true
+  pdf_document: default
 editor_options: 
   chunk_output_type: console
 ---
@@ -44,6 +42,7 @@ Either you can use `glimpse` like before, or `head` to do this.
 ```{r load-data, results=TRUE}
 library(tidyverse)
 library(openintro)
+library(e1071)
 data("fastfood", package='openintro')
 head(fastfood)
 ```
@@ -59,30 +58,43 @@ mcdonalds <- fastfood %>%
   filter(restaurant == "Mcdonalds")
 dairy_queen <- fastfood %>%
   filter(restaurant == "Dairy Queen")
+
+#Kevin addition
+mcd_dq <- rbind(mcdonalds %>% mutate(restaurant = "McDonald's"),
+                       dairy_queen %>% mutate(restaurant = "Dairy Queen"))
+
+
 ```
 
 1.  Make a plot (or plots) to visualize the distributions of the amount of calories from fat of the options from these two restaurants.  How do their centers, shapes, and spreads compare?
 
-Answer: this is a combined density plot calories from fat for both McDonald's and Dairy Queen. This shows that both of them have remarkably fat calorie distributions. McDonald's has a center that's a higher calorie amount than Dairy Queen, which is show by yhr gentle nudge to the right. Dairy Queen has more volatility coming off the peak but also doesn't have the aggressive tail that McDonald's has. McDonald's has a wider spread, which is probably a function of being a much larger and more successful fast food place with more options.
+Answer: 
+
+I've included two charts that show calories from fat for both McDonalds and Dairy Queen one is adensity plot distribution and the second is a box plot chart, one plot for each chain.
+
+Combined Density Plot:
+This shows that both of them have remarkably fat calorie distributions. McDonald's has a center that's a higher calorie amount than Dairy Queen, which is show by yhr gentle nudge to the right. Dairy Queen has more volatility coming off the peak but also doesn't have the aggressive tail that McDonald's has. McDonald's has a wider spread, which is probably a function of being a much larger and more successful fast food place with more options.
+
+Box Plots:
+shows pretty much the same story while also more clearly shwoing that that the middle of the respective chains calories from fat operate in the same sphere. The extra dots off the top for Mcdonalds shows the longer tail described above.
 
 
 ```{r fast-plots}
 
-micky_dqed <- rbind(
-  mcdonalds %>% mutate(restaurant = "McDonald's"),
-  dairy_queen %>% mutate(restaurant = "Dairy Queen")
-)
+ggplot(mcd_dq, aes(x = cal_fat, fill = restaurant)) +
+  geom_density(alpha = 0.5) + 
+  scale_fill_manual(name = "Brand", values = c('McDonald\'s' = 'skyblue', 'Dairy Queen' = 'purple')) +
+  theme_minimal()
 
-ggplot(micky_dqed, aes(x = cal_fat, fill = restaurant)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "McDonalds & Dairy Queen Calories from Fat",
-       x = "Calories",
-       y = "Density",
-       fill = "Restaurant") +
+
+ggplot(mcd_dq, aes(x = restaurant, y = cal_fat, fill = restaurant)) +
+  geom_boxplot() +
+  labs(title = "Calories from Fat: McDonald's vs Dairy Queen",
+       x = "Restaurant",
+       y = "Calories from Fat") +
   theme_minimal()
 
 ```
-
 
 
 ## The normal distribution
@@ -102,10 +114,11 @@ dqsd   <- sd(dairy_queen$cal_fat)
 Next, you make a density histogram to use as the backdrop and use the `lines` function to overlay a normal probability curve. The difference between a frequency histogram and a density histogram is that while in a frequency histogram the *heights* of the bars add up to the total number of observations, in a density histogram the *areas* of the bars add up to 1. The area of each bar can be calculated as simply the height *times* the width of the bar. Using a density histogram allows us to properly overlay a normal distribution curve over the histogram since the curve is a normal probability density function that also has area under the curve of 1. Frequency and density histograms both display the same exact shape; they only differ in their y-axis. You can verify this by comparing the frequency histogram you constructed earlier and the density histogram created by the commands below.
 
 ```{r}
-ggplot(data = dairy_queen, aes(x = cal_fat)) +
-        geom_blank() +
-        geom_histogram(aes(y = ..density..)) +
-        stat_function(fun = dnorm, args = c(mean = dqmean, sd = dqsd), col = "tomato")
+ggplot(dairy_queen, aes(x = cal_fat)) +
+  geom_blank() +
+  geom_histogram(aes(y = ..density..), binwidth = 20) +
+  stat_function(fun = dnorm, args = c(mean = dqmean, sd = dqsd), col = "skyblue")
+
 ```
 
 After initializing a blank plot with `geom_blank()`, the `ggplot2` package (within the `tidyverse`) allows us to add additional layers. The first layer is a density histogram. The second layer is a statistical function -- the density of the normal curve, `dnorm`. We specify that we want the curve to have the same mean and standard deviation as the column of fat calories. The argument `col` simply sets the color for the line to be drawn. If we left it out, the line would be drawn in black.
@@ -121,7 +134,10 @@ Eyeballing the shape of the histogram is one way to determine if the data appear
 
 ```{r}
 ggplot(data = dairy_queen, aes(sample = cal_fat)) + 
-  geom_line(stat = "qq")
+  geom_line(stat = "qq") + 
+  labs(title = "Normal Quantile-Quantile Chart of Dairty Queen Fat Calories")
+
+
 ```
 
 This time, you can use the `geom_line()` layer, while specifying that you will be creating a Q-Q plot with the `stat` argument. It's important to note that here, instead of using `x` instead `aes()`, you need to use `sample`.
@@ -140,16 +156,19 @@ The first argument indicates how many numbers you'd like to generate, which we s
 
 3.  Make a normal probability plot of `sim_norm`.  Do all of the points fall on the line?  How does this plot compare to the probability plot for the real data? (Since `sim_norm` is not a data frame, it can be put directly into the `sample` argument and the `data` argument can be dropped.)
 
-Answer: most of the points fall on or very close to the line, with some expected divergences for extremes towards the tail. The 
+Answer: 
 
-Simulated Data: The Q-Q plot for simulated normal data shows a nearly perfect alignment with the theoretical quantiles, meaning it follows a normal distribution closely.
-Real Data: The Q-Q plot and histogram for the real Dairy Queen data show that the data deviates from normality, with signs of skewness and possibly multiple modes (clusters of values), particularly in the upper tail
+Simulated Data: The Q-Q plot for simulated normal data shows points starting out away from the normal line at 2 quantiles below the mean of zero, with one quantile being about one standard deviation. The points then converge with normalize around the mean before deviating again starting at 1 quantile above. The actual dataset above doesn't follow a perfecr normal curve, with roughness in the approach and the tails. If anything, the plot points are accurately representing the data's natural state of not quite normal.
 
 
 ```{r qq-plot-sim}
-sim_norm <- rnorm(n = nrow(dairy_queen), mean = dqmean, sd = dqsd)
-qqnorm(sim_norm)
-qqline(sim_norm, col = "blue")
+
+ggplot() + 
+  geom_qq(aes(sample = sim_norm)) + 
+  geom_qq_line(aes(sample = sim_norm)) + 
+  labs(title = "Normal QQ Plot of Simulated Data",
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles")
 
 ```
 
@@ -163,12 +182,44 @@ qqnormsim(sample = cal_fat, data = dairy_queen)
     created for the simulated data?  That is, do the plots provide evidence that the
     calories are nearly normal?
 
-**Insert your answer here**
+Answer: I love these hedge terms like "nearly." There's too much deviation in the normal QQ Plot (Data) chart starting around the first quantile above zero for me to use the term "nearly." I would characterize the regular data as having normal features at times and potentially returnable to normal with more data. Fast food will always have a long tail of higher calorie foods.
 
 5.  Using the same technique, determine whether or not the calories from McDonald's
     menu appear to come from a normal distribution.
 
-**Insert your answer here**
+Answer: The Mcondalds data is very normal until the first quantile above the 0=mean of the standard curve. The data then deviates pretty dramatically, which was also highlighted with the extended box plot values above. All of the simulations are basically normal, which is interesting. It seems to be handling the non-extreme values well but it can't quite nail the outliers or a skew. 
+
+
+```{mcd-normality-bonanza}
+
+mcdmean <- mean(mcdonalds$cal_fat)
+mcdsd   <- sd(mcdonalds$cal_fat)
+
+ggplot(mcdonalds, aes(x = cal_fat)) +
+  geom_blank() +
+  geom_histogram(aes(y = ..density..), binwidth = 20) +
+  stat_function(fun = dnorm, args = c(mean = mcdmean, sd = mcdsd), col = "skyblue")
+
+ggplot(data = mcdonalds, aes(sample = cal_fat)) + 
+  geom_line(stat = "qq") + 
+  labs(title = "Normal Quantile-Quantile Chart of McDonalds Fat Calories")
+
+mcd_sim_norm <- rnorm(n = nrow(mcdonalds), mean = mcdmean, sd = mcdsd)
+                      
+ggplot() + 
+  geom_qq(aes(sample = mcd_sim_norm)) + 
+  geom_qq_line(aes(sample = mcd_sim_norm)) + 
+  labs(title = "Normal QQ Plot of Mcdonalds Simulated Data",
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles")
+
+```
+
+```{r mcdnorm}
+
+qqnormsim(sample = cal_fat, data = mcdonalds)
+
+```
 
 ## Normal probabilities
 
@@ -196,7 +247,72 @@ Although the probabilities are not exactly the same, they are reasonably close. 
 
 6.  Write out two probability questions that you would like to answer about any of the restaurants in this dataset.  Calculate those probabilities using both the theoretical normal distribution as well as the empirical distribution (four probabilities in all).  Which one had a closer agreement between the two methods?
 
-**Insert your answer here**
+Answer: 
+1. What is the probability that a Taco Bell meal has more than 400 calories?
+
+This question ended up having the closer agreement, with only ~.02 separating theoretical from empirical. 
+
+Theoretical probability: 0.5936
+Empircal: 0.557
+
+```{r tacobell-work}
+
+tcbdata <- subset(fastfood, restaurant == "Taco Bell")
+
+tcb_mean <- mean(tcbdata$calories)
+tcb_sd <- sd(tcbdata$calories)
+
+tcb_sim_norm <- rnorm(n = nrow(tcbdata), mean = tcb_mean, sd = tcb_sd)
+
+ggplot() + 
+  geom_qq(aes(sample = tcb_sim_norm)) + 
+  geom_qq_line(aes(sample = tcb_sim_norm)) + 
+  labs(title = "Normal QQ Plot of Taco Bell Simulated Data",
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles")
+
+#theoretical
+1 - pnorm(q = 400, mean = tcb_mean, sd = tcb_sd)
+
+
+#empircal
+tcbdata %>% 
+  filter(calories > 400) %>%
+  summarise(percent = n() / nrow(tcbdata))
+
+```
+
+
+2. What is the probability that a Subway meal has between 400 and 600 calories?
+
+Theoretical: 0.277
+Emperical: 0.198
+
+```{r subway-work}
+
+eatfresh <- subset(fastfood, restaurant == "Subway")
+
+sub_mean <- mean(eatfresh$calories)
+sub_sd <- sd(eatfresh$calories)
+
+sub_sim_norm <- rnorm(n = nrow(eatfresh), mean = sub_mean, sd = sub_sd)
+
+ggplot() + 
+  geom_qq(aes(sample = sub_sim_norm)) + 
+  geom_qq_line(aes(sample = sub_sim_norm)) + 
+  labs(title = "Normal QQ Plot of Subway Simulated Data",
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles")
+
+#theoretical probability
+pnorm(600, mean = sub_mean, sd = sub_sd) - pnorm(400, mean = sub_mean, sd = sub_sd)
+
+#empirical probability
+eatfresh %>% 
+  filter(calories > 400 & calories <= 600) %>%
+  summarise(percent = n() / nrow(eatfresh))
+
+```
 
 * * *
 
@@ -204,14 +320,117 @@ Although the probabilities are not exactly the same, they are reasonably close. 
 
 7.  Now let's consider some of the other variables in the dataset.  Out of all the different restaurants, which ones' distribution is the closest to normal for sodium?
    
-**Insert your answer here**
+```{r fast-sodium}
+
+sodium_cut <- fastfood %>% 
+  filter(!is.na(sodium)) %>%
+  mutate(log_sodium = log(sodium))
+
+sod_mean <- mean(sodium_cut$sodium)
+sod_sd <- sd(sodium_cut$sodium)
+
+ggplot(sodium_cut, aes(x = log_sodium, color = restaurant, fill = restaurant)) +
+  geom_density(alpha = 0.3) + 
+  labs(title = "Sodium Distribution Across Restaurantes - Log Normalized",
+       x = "Sodium",
+       y = "Density") +
+  theme_minimal()
+
+
+ggplot(sodium_cut, aes(x = log_sodium)) +
+  geom_blank() +
+  geom_histogram(aes(y = ..density..), binwidth = 20) +
+  stat_function(fun = dnorm, args = c(mean = sod_mean, sd = sod_sd), col = "skyblue")
+
+ggplot(data = sodium_cut, aes(sample = log_sodium)) + 
+  geom_line(stat = "qq") + 
+  labs(title = "Normal Quantile-Quantile Chart of Sodium Levels")
+
+sod_sim_norm <- rnorm(n = nrow(sodium_cut), mean = sod_mean, sd = sod_sd)
+
+ggplot() + 
+  geom_qq(aes(sample = sod_sim_norm)) + 
+  geom_qq_line(aes(sample = sod_sim_norm)) + 
+  labs(title = "Normal QQ - Sodiun",
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles")
+
+```
+
+Based on the above graphs and the below skewness and kurtosis charts, Arby's and Burger King have the normal normal distributions. Burger King's skewness of 0.188 indicates a nearly symmetric distribution. Arby's low kurtosis and skewness means it's not as weak overall, whereas Mcdonald's skewness of 2.27 is continued evidence fo what we saw earlier, where the data is not really normal.
+
+```{skew-kurtote}
+
+sod_stats <- fastfood %>%
+  group_by(restaurant) %>%
+  summarise(
+    mean_sodium = mean(sodium, na.rm = TRUE),
+    sd_sodium = sd(sodium, na.rm = TRUE),
+    sod_skewness = skewness(sodium, na.rm = TRUE),
+    sod_kurtosis = kurtosis(sodium, na.rm = TRUE)  # Corrected this line
+  )
+
+ggplot(sod_stats, aes(x = restaurant, y = sod_skewness, fill = restaurant)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Skewness by Restaurant - Sodium",
+       x = "Restaurant",
+       y = "Skewness") +
+  theme_minimal()
+
+ggplot(sod_stats, aes(x = restaurant, y = sod_kurtosis, fill = restaurant)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Kurtosis by Restaurant - Sodium",
+       x = "Restaurant",
+       y = "Kurtosis") +
+  theme_minimal()
+
+
+```
 
 8.  Note that some of the normal probability plots for sodium distributions seem to have a stepwise pattern. why do you think this might be the case?
 
-**Insert your answer here**
+Answer:
+
+I believe this is due to the data being considered discrete rather than continuous. These health stats released by restaurants are often rounded, which doesn't allow for infinite values in between any value. You won't see sodium reported as 500.12353482302, for instance. A stepwise would then be clustered around these jumps between different reported values rather than smoothing out over values in a continuous dataset.
+
+It would also be impacted by multiple lines sharing the same sodium values, like 1890 or 1900. These ties can further cement the step pattern as the curve is forced to go straight across more before going down again.
+
 
 9.  As you can see, normal probability plots can be used both to assess normality and visualize skewness.  Make a normal probability plot for the total carbohydrates from a restaurant of your choice.  Based on this normal probability plot, is this variable left skewed, symmetric, or right skewed? Use a histogram to confirm your findings.
 
-**Insert your answer here**
+Answer:
+
+Based on this QQ plot, I suspect this data is rightward skewed. The data clusters tightly around the long all the way unntil 1 quantile above the mean and then it explodes away. This indicates a normal chart until a long tail to the right.
+
+
+```{r carbs}
+
+sonic <- fastfood %>%
+  filter(restaurant == "Sonic")
+
+ggplot(sonic, aes(sample = total_carb)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Normal QQ Plot of Total Carbs - Sonic",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+
+```
+
+Here's the histogram to prove what I suspected based on the QQ plot. It's clustered tightly in a seemingly normal form and then there's a long tail in a rightward skew format. 
+
+```{r histo-sonic}
+
+ggplot(sonic, aes(x = total_carb)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  labs(title = "Histogram of Total Carbs - Sonic",
+       x = "Grams",
+       y = "Frequency") +
+  theme_minimal()
+
+
+```
 
 * * *

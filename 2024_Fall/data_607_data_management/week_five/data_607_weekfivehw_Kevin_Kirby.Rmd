@@ -1,0 +1,95 @@
+---
+title: 'DATA 607 Week Five: Working with Tidy Data'
+author: "Kevin Kirby"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Week Five Homework Overview
+
+![Airline Delays Chart](/Users/uwsthoughts/Desktop/delay_chart_image.png)
+
+The image above was provided by the assignment and is basis for the work below. It describes arrival delays for two airlines across five destinations.
+
+For this assignment, I need to:
+
+* Create a .CSV file based on the image above
+  * I was "encouraged to use a 'wide' structure similar to how the information appears above so that [I] can practice tidying and transformations..."
+* Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data. 
+* Perform analysis to compare the arrival delays for the two airlines
+
+
+## Import and Tidy Data
+
+To tidy the data, I had to spin my tires for a bit to find the right combination of tidyverse code to unlock the format I needed. It took me a long minute to realize that "col" needed to equal the entire comma separated header as a string. Once I figured that out, I was able to break it from the comma separated values in single cells into a traditional column/row setup. 
+
+The data initially came in as non-numeric, which I learned when I went to go do the summary that's next and I got an error saying the values were characters. I returned back and turned the city columns of number of flights into numbers.
+
+```{r tidy}
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+delays_csv <- "https://storage.googleapis.com/data_science_masters_files/2024_fall/data_607_data_management/week_five_files/flight_delays_redux.csv"
+delays_csv_raw <- read_csv(delays_csv)
+
+delays_split <- delays_csv_raw %>%
+  separate(col = 'Airline,Status,Los Angeles,Phoenix,San Diego,San Francisco,Seattle', into = c('Airline','Status','Los Angeles','Phoenix','San Diego','San Francisco','Seattle'), sep = ",")
+
+delays_split <- delays_split %>%
+  mutate(across(c('Los Angeles', 'Phoenix', 'San Diego', 'San Francisco', 'Seattle'), as.numeric))
+
+
+```
+
+
+## Analysis
+
+For the final analysis piece, I first moved the data around a bit so I had the different cities as values in a column instead of columns on their own. It's a lot easier to group different values from the same column together to do analysis than to have a setup where some key data is diffferent row values and others are different column values. In my experience, it's best to keep like with like. 
+
+delays_city produces a basic table that shows on-time percent by airline, status, and city. 
+
+```{r analysis}
+
+delays_analysis <- delays_split %>%
+  pivot_longer(cols = c('Los Angeles', 'Phoenix', 'San Diego', 'San Francisco', 'Seattle'),
+               names_to = "city", values_to = "flights")
+
+delays_city <- delays_analysis %>%
+  group_by(Airline, city) %>%
+  mutate(total_flights = sum(flights)) %>%
+  ungroup() %>%
+  mutate(ontime_percent = (flights / total_flights) * 100) %>%
+  select(Airline, city, Status, ontime_percent)
+
+print(delays_city)
+
+```
+
+
+This chart breaks out flight status by city and airline. I like to use stacked bar charts for these types of percent comparisons because in early EDA, which is what this is, I'm looking for patterns that stand out right away or don't quite make sense. Scanning across this, the question that immediately came to mind was: why does AM West struggle more in San Francisco than Alaska? 
+
+```{r plotting}
+
+status_colors <- c("on time" = "#1f78b4", "delayed" = "#33a02c")
+
+ggplot(delays_city, aes(x = city, y = ontime_percent, fill = Status)) +
+  geom_bar(stat = "identity", position = "stack") + 
+  facet_grid(~ Airline, scales = "free_x", space = "free_x") +  # Group by airline
+  scale_fill_manual(values = status_colors) +  # Use status-specific colors
+  labs(title = "Percent On-time and Delayed Flights by City and Airline",
+       x = "City", y = "Percent") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+

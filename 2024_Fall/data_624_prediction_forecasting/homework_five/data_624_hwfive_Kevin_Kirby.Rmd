@@ -2,7 +2,9 @@
 title: 'Homework Five for Fall 2024 DATA 624: Exponential Smoothing'
 author: "Kevin Kirby"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -447,13 +449,92 @@ aus_fitter_tester <- aus_train |>
 
 tester_forecast <- forecast(aus_fitter_tester, h = nrow(aus_test))
 
-accuracy(tester_forecast, aus_test) %>%
+original_rmse <- accuracy(tester_forecast, aus_test) %>%
   filter(.model == "MAdM") %>%
-  select(RMSE)
+  pull(RMSE)
+
+original_rmse
 
 ```
 
 
+## 8.9: Box-Cox versus ETS on sesonally adjusted data
 
-## 8.9: 
-For the same retail data, try an STL decomposition applied to the Box-Cox transformed series, followed by ETS on the seasonally adjusted data. How does that compare with your best previous forecasts on the test set?
+"For the same retail data, try an STL decomposition applied to the Box-Cox transformed series, followed by ETS on the seasonally adjusted data. How does that compare with your best previous forecasts on the test set?"
+
+Answer:
+
+Original RMSE from from 8.8.E:  5927.808 
+MAM Model RMSE: 5480.975 
+MAdM Model RMSE: 6421.878 
+
+The revised RMSE based on the seasonally adjusted data does not compare favorably. The MAM model performed the best overall because it properly fits the seasonality trend of this dataset, where as the dampening component of MAdM is causing an arch that flattens the future growth.
+
+```{r stl-decomp}
+
+aus_la <- aus_train %>%
+  features(turnover_sum, features = guerrero) %>%
+  pull(lambda_guerrero)
+
+# Apply the Box-Cox transformation to the monthly data
+aus_box_trans <- aus_train %>%
+  mutate(turnover_bc = box_cox(turnover_sum, lambda = aus_la))
+
+# Fit the STL decomposition model on the transformed data
+stl_fit_abt <- aus_box_trans %>%
+  model(STL_turnover = STL(turnover_bc ~ trend() + season(window = "periodic")))
+
+# Extract the seasonally adjusted component
+season_adjust <- stl_fit_abt %>%
+  components() %>%  # Get decomposition components
+  select(Month, season_adjust)
+
+ets_fit <- season_adjust %>%
+  model(MAM = ETS(season_adjust ~ error("M") + trend("A") + season("N")), 
+        MAdM = ETS(season_adjust ~ error("M") + trend("Ad") + season("N")))
+
+
+ets_forecast <- ets_fit %>%
+  forecast(h = 96)
+
+ets_forecast %>%
+  autoplot(season_adjust, level=NULL) +
+  labs(title = "10 Year Seasonsally Adjusted Aussie Retail Turnover Forecast",
+       x = "Year",
+       y = "Adjusted") +
+  scale_y_continuous(labels = scales::comma_format()) +
+  theme_minimal()
+
+```
+
+```{r etc-check}
+ets_forecast_inv <- ets_forecast %>%
+  filter(.model == "MAM") %>%
+  mutate(.mean = inv_box_cox(.mean, aus_la))
+
+ets_forecast_madm <- ets_forecast %>%
+  filter(.model == "MAdM") %>%
+  mutate(.mean = inv_box_cox(.mean, aus_la))
+
+aus_test_df <- as_tibble(aus_test)
+ets_forecast_inv_df <- as_tibble(ets_forecast_inv)
+
+aus_test_madm <- as_tibble(aus_test)
+ets_forecast_inv_madm <- as_tibble(ets_forecast_madm)
+
+test_forecast_compare <- aus_test_df %>%
+  select(Month, turnover_sum) %>%
+  left_join(ets_forecast_inv_df, by = "Month")
+
+test_forecast_compare_madm <- aus_test_madm %>%
+  select(Month, turnover_sum) %>%
+  left_join(ets_forecast_inv_madm, by = "Month")
+
+mam_rmse <- sqrt(mean((test_forecast_compare$.mean - test_forecast_compare$turnover_sum)^2))
+madm_rmse <- sqrt(mean((test_forecast_compare_madm$.mean - test_forecast_compare_madm$turnover_sum)^2))
+
+cat("Original RMSE from from 8.8.E: ", original_rmse, "\n")
+cat("MAM Model RMSE:", mam_rmse, "\n")
+cat("MAdM Model RMSE:", madm_rmse, "\n")
+
+```

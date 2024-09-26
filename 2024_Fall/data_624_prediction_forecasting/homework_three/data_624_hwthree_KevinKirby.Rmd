@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Overview
 
-The below are answers to exercises 5.1, 5.2, 5.3, 5.4 and 5.11 from section 3.7 of the [Forecasting: Principles and Practice (3rd ed)] (https://otexts.com/fpp3/graphics-exercises.html). This is homework one of the DATA 624 class "Predictive Analytics." Unless otherwise noted, all datasets used below are from the fpp3 package that's owned and maintained by the book's authors. 
+The below are answers to exercises 5.1, 5.2, 5.3, 5.4 and 5.7 from section 5 of the [Forecasting: Principles and Practice (3rd ed)] (https://otexts.com/fpp3/graphics-exercises.html). This is homework one of the DATA 624 class "Predictive Analytics." Unless otherwise noted, all datasets used below are from the fpp3 package that's owned and maintained by the book's authors. 
 
 First, I'll load the required libraries:
 
@@ -60,7 +60,7 @@ aussie_drift %>%
     labs(title = "10 Year Drift Forecast for Population of Australia",
        x = "Year",
        y = "Population") +
-    scale_y_continuous(labels = scales::comma_format()) +  # Changes to regular number format with commas
+    scale_y_continuous(labels = scales::comma_format()) +
     theme_minimal()
 
 ```
@@ -419,7 +419,7 @@ fc <- fit |>
 
 autoplot(myseries_train_agg, Turnover) +
   autolayer(fc, Turnover) + 
-  labs(title = "Ten Year FB Stock Forecast", x = "Month", y = "Turnover") +
+  labs(title = "Ten YearAggregated Retail Turnover Forecast", x = "Month", y = "Turnover") +
   theme_minimal()
 
 ```

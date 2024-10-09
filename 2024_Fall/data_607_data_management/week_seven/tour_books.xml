@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+  <book>
+    <title>The Tour de France: A History</title>
+    <authors>Richard Moore</authors>
+    <release_date>2023-04-11</release_date>
+    <total_pages>400</total_pages>
+    <objective_history>TRUE</objective_history>
+  </book>
+  <book>
+    <title>Yellow Jersey: The Inside Story of the Greatest Cycling Race on Earth</title>
+    <authors>Daniel Friebe, Jeremy Whittle</authors>
+    <release_date>2019-06-03</release_date>
+    <total_pages>352</total_pages>
+    <objective_history>TRUE</objective_history>
+  </book>
+  <book>
+    <title>The Lance Armstrong Years: A Cycling Legend's Rise to Power and Fall from Grace</title>
+    <authors>Daniel Coyle</authors>
+    <release_date>2012-02-21</release_date>
+    <total_pages>288</total_pages>
+    <objective_history>TRUE</objective_history>
+  </book>
+</books>

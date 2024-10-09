@@ -1,0 +1,23 @@
+[
+    {
+      "title": "The Tour de France: A History",
+      "authors": "Richard Moore",
+      "release_date": "2023-04-11",
+      "total_pages": 400,
+      "objective_history": true
+    },
+    {
+      "title": "Yellow Jersey: The Inside Story of the Greatest Cycling Race on Earth",
+      "authors": "Daniel Friebe, Jeremy Whittle",
+      "release_date": "2019-06-03",
+      "total_pages": 352,
+      "objective_history": true
+    },
+    {
+      "title": "The Lance Armstrong Years: A Cycling Legend's Rise to Power and Fall from Grace",
+      "authors": "Daniel Coyle",
+      "release_date": "2012-02-21",
+      "total_pages": 288,
+      "objective_history": true
+    }
+  ]

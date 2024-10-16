@@ -363,7 +363,6 @@ Answer:
 For a 95% confidence level, I calculated the z-score using qnorm with 0.975 as the input. 0.975 is the input for a 95% confidence because I want a z-score that leaves 2.5% in each tail of the normal distribution. The confidence interval is symmetric so the leftover 5% is split equally between the two tails.
 
 
-
 ```{r redo-pm}
 
 z_95 <- qnorm(0.975)

@@ -20,6 +20,7 @@ library(dplyr)
 library(fpp3)
 library(prophet)
 library(fable)
+library(openxlsx)
 ```
 
 ## Overview
@@ -694,6 +695,31 @@ cat("\n This is a 12 month prophet forecast")
 
 ```
 This shows a steady central trend with minimal expected growth but fails to fully capture the high level of volatility present in the historical data. The model’s confidence intervals are narrow and tightly bound around the central forecast, indicating an overly optimistic and high degree of certainty in the model, given the scattered outliers. Overall, it performs fine for the general pattern but underestimates the intense fluctuations in the historical record.
+
+## Final export
+
+As required, I'm going to export all forecasts to one Excel file for submission.
+
+```{r excels}
+fc_xls <- createWorkbook()
+
+addWorksheet(fc_xls, "ATM1 forecast")
+writeData(fc_xls, "ATM1 forecast", atm1_fc)
+
+addWorksheet(fc_xls, "ATM2 forecast")
+writeData(fc_xls, "ATM2 forecast", atm2_fc)
+
+addWorksheet(fc_xls, "ATM3 forecast")
+writeData(fc_xls, "ATM3 forecast", atm3_fc)
+
+addWorksheet(fc_xls, "ATM4 forecast")
+writeData(fc_xls, "ATM4 forecast", atm4_fc)
+
+addWorksheet(fc_xls, "KWH forecast")
+writeData(fc_xls, "KWH forecast", restpower_fc)
+
+saveWorkbook(fc_xls, "/Users/uwsthoughts/Desktop/data_624_projectone_fcs_Kevin_Kirby.xlsx", overwrite = TRUE)
+```
 
 ### End of assignment
 

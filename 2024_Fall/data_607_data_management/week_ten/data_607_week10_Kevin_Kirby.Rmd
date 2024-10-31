@@ -1,0 +1,228 @@
+---
+title: "DATA 607 Week 10 - Natural Language Processing"
+author: "Kevin Kirby"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+bibliography: data_607_assignment8.bib
+csl: mla.csl
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, results = FALSE, message=FALSE}
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(readr)
+
+```
+
+## Assignment Overview
+
+This is assignment 8 from week ten of the fall 2024 edition of DATA 607.The assignment is as stated below, lightly edited for length and clarity:
+
+You should start by getting the primary example code from chapter 2 of [Text Mining with R](https://www.tidytextmining.com/sentiment.html) on sentiment anlysis working in an R Markdown document. You should provide a citation to this base code. You’re then asked to extend the code in two ways:
+
+* Work with a different corpus of your choosing, and
+* Incorporate at least one additional sentiment lexicon (possibly from another R package that you’ve found through research)."
+
+The primary code example comes from the [tidy-text-mining Github repo](https://github.com/dgrtwo/tidy-text-mining/blob/master/02-sentiment-analysis.Rmd) [@tidytext2024], which is the official repository for the above noted book. The relevant Rmd parts are as follows:
+
+"As discussed above, there are a variety of methods and dictionaries that exist for evaluating the opinion or emotion in text. The tidytext package provides access to several sentiment lexicons. Three general-purpose lexicons are
+
+* `AFINN` from [Finn Årup Nielsen](http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=6010),
+* `bing` from [Bing Liu and collaborators](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html), and
+* `nrc` from [Saif Mohammad and Peter Turney](http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm).
+
+All three of these lexicons are based on unigrams, i.e., single words. These lexicons contain many English words and the words are assigned scores for positive/negative sentiment, and also possibly emotions like joy, anger, sadness, and so forth. The `nrc` lexicon categorizes words in a binary fashion ("yes"/"no") into categories of positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust. The `bing` lexicon categorizes words in a binary fashion into positive and negative categories. The `AFINN` lexicon assigns words with a score that runs between -5 and 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment.
+
+The function `get_sentiments()` allows us to get specific sentiment lexicons with the appropriate measures for each one.
+
+```{r sentiment-example, message=FALSE}
+library(tidytext)
+library(tidyverse)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+
+afinn <- get_sentiments("afinn")
+
+bing <- get_sentiments("bing")
+
+nrc <- get_sentiments("nrc")
+
+# Prepare the text data in tidy format
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, regex("^chapter [\\\\divxlc]", ignore_case = TRUE)))
+  ) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+# Join with NRC lexicon for sentiment "joy" in "Emma"
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
+
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+
+nrc_joy <- nrc %>% 
+  filter(sentiment == "joy")
+
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+
+jane_austen_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+
+pride_prejudice <- tidy_books %>% 
+  filter(book == "Pride & Prejudice")
+
+afinn <- pride_prejudice %>% 
+  inner_join(afinn) %>% 
+  group_by(index = linenumber %/% 80) %>% 
+  summarise(sentiment = sum(value)) %>% 
+  mutate(method = "AFINN")
+
+bing_and_nrc <- bind_rows(
+  pride_prejudice %>% 
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  pride_prejudice %>% 
+    inner_join(nrc %>% 
+                 filter(sentiment %in% c("positive", 
+                                         "negative"))
+    ) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+
+bind_rows(afinn, 
+          bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+
+get_sentiments("nrc") %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+
+nrc %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+
+get_sentiments("bing") %>% 
+  count(sentiment)
+
+```
+
+"
+## Overview of chosen data and analysis 
+
+I've chosen [the App Store Reviews for a Mobile App](https://www.kaggle.com/datasets/sanlian/app-store-reviews-for-a-mobile-app) from Kaggle, which contains the app store reviews for a mobile app, broken out by platform, contry, and device. I exported the data and then uploaded it to my GCP instance for import below. 
+
+For my additional Lexicon, I have chosen the [Loughran-McDonald Lexicon](https://sraf.nd.edu/loughranmcdonald-master-dictionary/). According to the University of Notre Dame's Software Repository for Accounting and Finance overview:
+
+"The dictionary reports counts, proportion of total, average proportion per document, standard deviation of proportion per document, document count (i.e., number of documents containing at least one occurrence of the word), seven sentiment category identifiers, complexity, number of syllables, and source for each word (source is either 12of12inf or the year in which the word was added).  
+ 
+The sentiment categories are: negative, positive, uncertainty, litigious, strong modal, weak modal, and constraining."[@loughran2011liability]
+
+```{r dream-import, show_col_types=FALSE, message=FALSE}
+
+apps_url = 'https://storage.googleapis.com/data_science_masters_files/2024_fall/data_607_data_management/week_ten/app_store_reviews.csv'
+
+app_reviews_df <- read_delim(apps_url, delim = ";")
+
+loughran_mc_lex <- get_sentiments("loughran")
+
+head(app_reviews_df)
+```
+
+### Code implementation
+
+Here is ny implementation of the above code fronm the authors, with a component added that uses the Loughran method. This does the analysis by country, platform (operating system), and star reviews. Unsurprisingly, the higher the start reviews, the more positive the sentiment of the reviews. Not really any divergences by country or platform, either. It seems we are all, at the end of the day, remarkably similar in certain respects. 
+
+```{r sentiment-apps, message=FALSE}
+loughran_mc <- get_sentiments("loughran")
+
+tidy_reviews_apps <- app_reviews_df %>%
+  mutate(row_id = row_number()) %>%
+  unnest_tokens(word, review)
+
+nrc_joy_apps <- nrc %>%
+  filter(sentiment == "joy")
+
+tidy_reviews_apps %>%
+  filter(country %in% c("USA", "India", "Brazil")) %>%
+  inner_join(nrc_joy_apps,relationship = 'many-to-many') %>%
+  count(word, sort = TRUE)
+
+reviews_sentiment_apps <- tidy_reviews_apps %>%
+  filter(country %in% c("USA", "India", "Brazil"), platform %in% c("iOS", "Android")) %>%
+  inner_join(bing, relationship = 'many-to-many') %>%
+  count(country, platform, row_id, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment_score = positive - negative)
+
+ggplot(reviews_sentiment_apps, aes(row_id, sentiment_score, fill = country)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ platform + country, ncol = 2, scales = "free_x") +
+  labs(title = "Sentiment Analysis of App Reviews by Country and Platform")
+
+afinn_apps <- tidy_reviews_apps %>%
+  inner_join(get_sentiments("afinn")) %>%
+  group_by(country, platform, index = row_id %/% 80) %>%
+  summarise(sentiment_score = sum(value)) %>%
+  mutate(method = "AFINN")
+
+bing_and_nrc_apps <- bind_rows(
+  tidy_reviews_apps %>%
+    inner_join(bing, relationship = "many-to-many") %>%
+    mutate(method = "Bing et al."),
+  tidy_reviews_apps %>%
+    inner_join(nrc %>% filter(sentiment %in% c("positive", "negative"))) %>%
+    mutate(method = "NRC")
+) %>%
+  count(method, country, platform, index = row_id %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment_score = positive - negative)
+
+loughran_sentiment_apps <- tidy_reviews_apps %>%
+  inner_join(loughran_mc %>% filter(sentiment %in% c("positive", "negative"))) %>%
+  count(country, platform, index = row_id %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment_score = positive - negative, method = "Loughran")
+
+sentiment_combined_apps <- bind_rows(afinn_apps, bing_and_nrc_apps, loughran_sentiment_apps)
+
+ggplot(sentiment_combined_apps, aes(index, sentiment_score, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ method, ncol = 1, scales = "free_y") +
+  labs(title = "Sentiment Comparison across Methods")
+
+```

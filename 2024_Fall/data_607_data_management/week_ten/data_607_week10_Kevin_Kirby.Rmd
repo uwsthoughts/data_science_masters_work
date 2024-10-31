@@ -3,8 +3,8 @@ title: "DATA 607 Week 10 - Natural Language Processing"
 author: "Kevin Kirby"
 date: "`r Sys.Date()`"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
   word_document: default
 bibliography: data_607_assignment8.bib
 csl: mla.csl

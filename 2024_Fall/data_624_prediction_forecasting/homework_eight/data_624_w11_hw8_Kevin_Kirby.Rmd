@@ -1,0 +1,322 @@
+---
+title: "DATA 624 Homework 8 - Non-Linear Regression"
+author: "Kevin Kirby"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This is homework eight of the Fall 2024 edition of DATA 624. The assignment covers questions 7.2 and 7.5 from the exercise section of chapter 7 in [Applied Predictive Modeling by Max Kuhn and Kjell Johnson](http://appliedpredictivemodeling.com/)
+
+First, most of the requried libraries
+
+```{r libraries, results = FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(AppliedPredictiveModeling)
+library(mlbench)
+library(caret)
+library(earth)
+library(kernlab)
+library(RANN)
+
+
+set.seed(04101)
+
+```
+
+## 7.2 Tuning models on benchmmark datasets:
+
+The exercise states:
+"Friedman (1991) introduced several benchmark data sets create by simulation. One of these simulations used the following nonlinear equation to create data:
+
+$$
+y = 10 \sin(\pi x_1 x_2) + 20(x_3 - 0.5)^2 + 10x_4 + 5x_5 + N(0, \sigma^2)
+$$
+where the x values are random variables uniformly distributed between [0, 1] (there are also 5 other non-informative variables also created in the simulation). The package mlbench contains a function called mlbench.friedman1 that simulates these data"
+
+The following code snippet was also provided:
+
+```{r provide-ml, message=FALSE, warning=FALSE}
+trainingData <- mlbench.friedman1(200, sd = 1)
+trainingData$x <- data.frame(trainingData$x)
+featurePlot(trainingData$x, trainingData$y)
+
+testData <- mlbench.friedman1(5000, sd = 1)
+testData$x <- data.frame(testData$x)
+
+knnModel <- train(x = trainingData$x,
+  y = trainingData$y,
+  method = "knn",
+  preProc = c("center", "scale"),
+  tuneLength = 10)
+  knnModel
+ 
+```
+
+
+I must now tune "several models on these data," and then provide comentary. I ave chosen the following models:
+
+* Multivariate Adaptive Regression Splines (MARS)
+* Neural Networks
+* Support Vector Machines
+
+### 7.2 - Multivariate Adaptive Regression Splines
+
+I'm starting with because it's what I'm presenting on during my team's presentation. MARS is a nonparametric regression technique that allows you to model relationships without assuming a particular shape of relationship at the start It's a piecewise model with defined linear relationships called “splines” what map different segments of the data. The boundaries of the segments can overlap and are tied together with “knots.’
+
+```{r mars, message=FALSE, warning=FALSE}
+mc <- trainControl(method = "repeatedcv", number = 3)
+mexpand_g <- expand.grid(.degree = 2:3, .nprune = 4:45)
+
+life_on_mars <- train(trainingData$x, trainingData$y,
+                      method = "earth",             
+                      tuneGrid = mexpand_g,       
+                      preProcess = c("center", "scale", "knnImpute"),
+                      tuneLength = 15,
+                      trControl = mc)           
+
+life_on_mars
+
+m_predict <- predict(life_on_mars, newdata = testData$x)
+predict_track <- data.frame(matrix(vector(), 0, 4,  # Increased to 4 for the model name
+                dimnames = list(NULL, c("RMSE", "r2", "MAE", "model"))),
+                stringsAsFactors = FALSE)
+
+m_metrics <- as.data.frame(t(postResample(pred = m_predict, obs = testData$y)))
+m_metrics$model <- "MARS"
+
+predict_track <- rbind(predict_track, m_metrics)
+```
+
+
+### 7.2 - Support Vector Machines
+Support Vector Machines finds an optimal hyperplane to separate data points by maximizing the margin between different targets values. A radial basis function can be used for non-linear data as well. 
+
+```{r support-vectors, message=FALSE, warning=FALSE} 
+svc <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+
+svc_t <- expand.grid(.C = seq(0.1, 1, by = 0.1), .sigma = seq(0.05, 0.2, by = 0.05))
+
+svm_m <- train(x = trainingData$x,
+                  y = trainingData$y,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneGrid = svc_t, 
+                  trControl = svc)
+
+svm_m
+
+svm_p<- predict(svm_m, newdata = testData$x)
+svm_metrics <- as.data.frame(t(postResample(pred = svm_p, obs = testData$y)))
+svm_metrics$model <- "SVMs"
+predict_track <- rbind(predict_track, svm_metrics)
+
+```
+Thus far, the The MARS model is ahead of the SVM, with a higher RMSE of 1.34  and R-squared of ~0.938. For the SVM,  the increasing C improved results, but gains leveled off after C = 1. Both models are strong, but MARS might be the better pick here for capturing data variance.
+
+### 7.2 Neural Networks
+
+This code trains an averaged neural network model using the avNNet method, applying preprocessing steps to center and scale the data. It customizes the model with a tuning grid, cross-validation controls, and specific parameters for network size, weights, and iteration limits.
+
+```{r neural, message=FALSE, warning=FALSE}
+
+nnet_grid <- expand.grid(.decay = c(0, 0.001, 0.01, 0.05, 0.1), .size = 1:15, .bag = FALSE)
+control <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+nnet_maxnwts <- 150
+nnet_model <- train(x = trainingData$x,
+                    y = trainingData$y,
+                    method = "avNNet",
+                    preProcess = c("center", "scale"),
+                    tuneGrid = nnet_grid,
+                    trControl = control,
+                    linout = TRUE,
+                    trace = FALSE,
+                    MaxNWts = nnet_maxnwts,
+                    maxit = 300)
+
+nnet_model
+
+nn_p <- predict(nnet_model, newdata = testData$x)
+nn_metrics <- as.data.frame(t(postResample(pred = nn_p, obs = testData$y)))
+nn_metrics$model <- "Neural Networks"
+predict_track <- rbind(predict_track, nn_metrics)
+
+predict_track
+
+```
+
+The final part of the question states:
+"Which models appear to give the best performance? Does MARS select the informative predictors (those named X1–X5)?"
+
+Answer:
+
+Based on the above, the mars model came out ahead. It did a better job of capturing the underlying patterns in the data. While SVMs and Neural Networks showed decent performance, their higher RMSE values suggest that they may not predict as accurately as MARS for this particular dataset.
+
+
+## 7.5 training several non-linear models
+
+The exercise states:
+"Exercise 6.3 describes data for a chemical manufacturing process. Use the same data imputation, data splitting, and pre-processing steps as before and train several nonlinear regression models.
+
+I'll first bring in the data from 6.3.
+
+```{r data-recreate,message=FALSE, warning=FALSE}
+data("ChemicalManufacturingProcess")
+chem_ct <- trainControl(method = "repeatedcv", number = 3)
+
+mexpand_gt <- expand.grid(.degree = 2:3, .nprune = 4:45)
+
+
+chem_pre <- preProcess(ChemicalManufacturingProcess, 
+                       method = c("BoxCox", "knnImpute", "center", "scale"))
+chem_pred <- predict(chem_pre, ChemicalManufacturingProcess)
+chem_pred$Yield = ChemicalManufacturingProcess$Yield
+
+chem_i <- sample(seq_len(nrow(chem_pred)), size = floor(0.85 * nrow(chem_pred)))
+ctr <- chem_pred[chem_i, ]
+ctt <- chem_pred[-chem_i, ]
+
+```
+
+
+Now I can run amm the models again, using the same order as earlier.
+
+```{r model-redux, message=FALSE, warning=FALSE}
+knnm <- train(Yield ~ ., data = ctr,
+              method = "knn",
+              preProcess = c("center", "scale"),
+              tuneLength = 10)
+knnpt <- predict(knnm, newdata = ctt)
+
+nnet_g <- expand.grid(.decay = c(0, 0.001, 0.01), .size = 1:1, .bag = FALSE)
+nnet_mw <- 5 * (ncol(ctr) + 1) + 5 + 1
+
+nnmt <- train(Yield ~ ., data = ctr,
+              method = "avNNet",
+              tuneGrid = nnet_g,
+              trControl = chem_ct,  
+              linout = TRUE,
+              trace = FALSE,
+              MaxNWts = nnet_mw,
+              maxit = 130)
+nnpt <- predict(nnmt, newdata = ctt)
+
+marst <- train(Yield ~ ., data = ctr,
+               method = "earth",
+               tuneGrid = mexpand_gt,  
+               trControl = chem_ct) 
+marspt <- predict(marst, newdata = ctt)
+
+svmtt <- train(Yield ~ ., data = ctr,
+               method = "svmRadial",
+               tuneLength = 8,
+               trControl = chem_ct) 
+svmpt <- predict(svmtt, newdata = ctt)
+
+chem_r <- data.frame(Model = character(),
+                     RMSE = numeric(),
+                     R_squared = numeric(),
+                     MAE = numeric(),
+                     stringsAsFactors = FALSE)
+
+knn_r <- postResample(pred = knnpt, obs = ctt$Yield)
+chem_r <- rbind(chem_r, data.frame(Model = "KNN",
+                                    RMSE = knn_r[1],
+                                    R_squared = knn_r[2],
+                                    MAE = knn_r[3]))
+
+nn_r <- postResample(pred = nnpt, obs = ctt$Yield)
+chem_r <- rbind(chem_r, data.frame(Model = "Averaged Neural Network",
+                                    RMSE = nn_r[1],
+                                    R_squared = nn_r[2],
+                                    MAE = nn_r[3]))
+
+mars_r <- postResample(pred = marspt, obs = ctt$Yield)
+chem_r <- rbind(chem_r, data.frame(Model = "MARS",
+                                    RMSE = mars_r[1],
+                                    R_squared = mars_r[2],
+                                    MAE = mars_r[3]))
+
+svm_results <- postResample(pred = svmpt, obs = ctt$Yield)
+chem_r <- rbind(chem_r, data.frame(Model = "SVM",
+                                    RMSE = svm_results[1],
+                                    R_squared = svm_results[2],
+                                    MAE = svm_results[3]))
+chem_r
+```
+
+### 7.5.a - Which nonlinear regression model gives the optimal resampling and test set performance?
+
+Answer:
+SVM has the lowest RMSE at 0.7649 and the highest R-squared at 0.8526684 among all models. This shows it has best predictive accuracy and also accounts for a lot of the variance in the data. It also has the lowest MAE at 0.6, which means its making the smallest average prediction errors as well. 
+
+Based on the above, I would say SVM provided the optimal resampling and test set performance based.
+
+```{r no-line-res}
+perfs <- as.data.frame(rbind(
+  "KNN" = postResample(pred = knnpt, obs = ctt $Yield),
+  "MARS" = postResample(pred = marspt, obs = ctt$Yield),
+  "SVM" = postResample(pred = svmpt, obs = ctt $Yield),
+  "Averaged Neural Network" = postResample(pred = nnpt, obs = ctt $Yield)
+))
+
+perfs <- cbind(Model = rownames(perfs), perfs)
+rownames(perfs) <- NULL  
+
+perfs <- perfs %>% arrange(RMSE)
+
+perfs
+
+```
+
+### 7.5.b - Determining the most important predictors
+
+The next component question states:
+
+"Which predictors are most important in the optimal nonlinear regression model? Do either the biological or process variables dominate the  list? How do the top ten important predictors compare to the top ten  predictors from the optimal linear model?"
+
+Answer:
+As with the last time we worked with this same dataset, there's pretty much an even split between biological and process variables at the top.
+
+```{r imp-vars}
+varImp(svmtt, 10)
+
+```
+
+### 7.5.c Exploring relationships in the data
+
+The final component question states:
+
+"Explore the relationships between the top predictors and the response for the predictors that are unique to the optimal nonlinear regression model.  Do these plots reveal intuition about the biological or process predictors and their relationship with yield?"
+
+Answer:
+
+A lot of random patterns here but also strong ones. Maufacturing Process 36 has a very specific style of distributiob against yield. I would be curious to know what's driving that. My intuition would now say there will always be some sort of meaningful relationship but it does breakdown along biological/processing lines.
+
+```{r data-explore}
+top_vars <- varImp(svmtt)$importance %>% 
+  arrange(desc(Overall)) %>% 
+  head(10) %>% 
+  rownames()
+besties <- top_vars
+
+plotter <- lapply(besties, function(predictor) {
+  ggplot(ctt, aes(x = .data[[predictor]], y = Yield)) +
+    geom_point() +
+    labs(x = predictor, y = "Yield", title = paste(predictor, "vs Yield")) +
+    theme(plot.title = element_text(size = 10))
+})
+
+grid.arrange(grobs = plotter)
+
+```

@@ -1,0 +1,84 @@
+---
+title: "Data 608 Story 3"
+author: "Kevin Kirby"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(httr)
+library(ggplot2)
+library(dplyr)
+library(viridis)
+
+```
+
+## Overview
+
+The assignment states:
+"Do differences in per capita healthcare spending correlate with adult obesity prevalence? Your task is to analyze the provided obesity data and source additional data on healthcare spending to address this question."
+
+I am to collect state-level per capita health spending and combine it with a provided obesity dataset to answer the above question.
+
+## Data preparation
+
+I will import the datasets and create dataframes based on them. I used the Kaiser dataset ['Health Care Expenditures per Capita by State of Residence'](https://www.kff.org/other/state-indicator/health-spending-per-capita/?currentTimeframe=0&sortModel=%7B%22colId%22:%22Location%22,%22sort%22:%22asc%22%7D) to get state health expenditures. This data is refreshed every five years and the below is based on 2020 data.
+
+```{r file import, warning=FALSE, message=FALSE}
+
+obsesity_xls <- 'https://storage.googleapis.com/data_science_masters_files/adult%20obesity.xlsx'
+statehealth_csv <- 'https://storage.googleapis.com/data_science_masters_files/statehealth_percapita.csv'
+
+obsesity_t <- tempfile(fileext = ".xlsx")
+GET(obsesity_xls, write_disk(obsesity_t, overwrite = TRUE))
+obesity_df <- read_excel(obsesity_t)
+
+statehealth_df <- read_csv(statehealth_csv)
+
+```
+### Data merging and quintiles
+
+The two dataframes are merged based on state name, with anything not matching being dropped. I used `ntile()` from `dplyr` to create the quntiles, which are assigned as values 1-5.
+
+```{r merge-data}
+state_health_df <- merge(obesity_df, statehealth_df, by.x = "State", by.y = "Location")
+
+state_health_df <- state_health_df %>%
+  rename(
+    state_name = State,
+    obesity_rank = Rank,
+    obesity_pct = `Obesity %`,
+    per_cap_health_spend = `Health Spending per Capita`
+  ) %>%
+  mutate(spend_quintile = ntile(per_cap_health_spend, 5))
+
+state_health_df
+
+```
+
+## Analysis and visualization of data
+
+I used obesity_pct as the health outcome metric to analyze differences across the quintiles. 
+
+Below are five box plots, one for each of the five health spending quintiles. It's interesting to see the basically non-existent relationship between health spending and obesity percent. It speaks to the generally inefficient state of American healthcare spending, where there often seems to be very little connection between spending and outcomes. If anything, you would expect there to be pressure in the reverse direction, where states are spending less because their population is generally healthy. I can determine this by seeing the seeing very similar 50% markers for both the first and last quintile. The color shading also makes it easier to scan across as accessible colors are also easier for everyone to understand.
+
+```{r boxes-quints}
+ggplot(state_health_df, aes(x = factor(spend_quintile), y = obesity_pct, fill = factor(spend_quintile))) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, option = "C") + 
+  labs(
+    title = "Comparing obsesity prevelance to health spending",
+    x = "Per capital health spending quintile",
+    y = "Onsesity %",
+    fill = "Spend quintile"
+  ) +
+  theme_minimal()
+```

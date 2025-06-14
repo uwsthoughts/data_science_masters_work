@@ -1,3 +1,0 @@
-c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", 
-"cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", 
-"lychee", "mulberry", "olive", "salal berry")
